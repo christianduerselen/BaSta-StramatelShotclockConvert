@@ -1,37 +1,39 @@
-#include "SoftwareSerial.h"
+// #include "SoftwareSerial.h"
 
 #include "StramatelProtocolParser.h"
 
-const int Rx1Pin = 2;
-const int Tx1Pin = 3;
-const int Rx2Pin = 4;
-const int Tx2Pin = 5;
+// const int Rx1Pin = 2;
+// const int Tx1Pin = 3;
+// const int Rx2Pin = 4;
+// const int Tx2Pin = 5;
 
 const int Baudrate = 19200;
 
-SoftwareSerial serialInput(Rx1Pin, Tx1Pin);
-SoftwareSerial serialOutput(Rx2Pin, Tx1Pin);
+// SoftwareSerial serialInput(Rx1Pin, Tx1Pin);
+// SoftwareSerial serialOutput(Rx2Pin, Tx1Pin);
 StramatelProtocolParser protocolParser;
+bool conversionNecessary = false;
 
 void setup()
 {
   // Configure serial receive (through SerialInput)
-  serialInput.begin(Baudrate);
-  serialOutput.begin(Baudrate);
+  // serialInput.begin(Baudrate);
+  // serialOutput.begin(Baudrate);
 
-  Serial.begin(Baudrate);
+  Serial1.begin(Baudrate);
+  SerialUSB.begin(Baudrate);
 }
 
 void loop()
 {
   // RECEIVE
-  if (!serialInput.available() > 0)
+  if (!Serial1.available() > 0)
     return;
   
   // Read next byte from input
-  byte value = serialInput.read();
+  byte value = Serial1.read();
 
-  Serial.write(value);
+  // Serial.write(value);
 
   protocolParser.push(value);
 
@@ -45,8 +47,12 @@ void loop()
   byte shotClockHigh = protocolParser.getMessageByte(ShotClockHigh);
   byte shotClockLow = protocolParser.getMessageByte(ShotClockLow);
 
+  // If not yet detected, check if the lower byte has an extended value
+  if (!conversionNecessary && isExtendedValue(shotClockLow))
+    conversionNecessary = true;
+
   // Both values must be between 0x30 (0) and 0x49 (.9) to be valid for potential manipulation
-  if (shotClockHigh >= 0x30 && shotClockHigh <= 0x49 && shotClockLow >= 0x30 && shotClockLow <= 0x49)
+  if (conversionNecessary && isValidValue(shotClockHigh) && isValidValue(shotClockLow))
   {
     // Convert data bytes to numerical value and compensate 
     float value = 0;
@@ -78,6 +84,16 @@ void loop()
   // Write the final message to the output
   for (int i = 0; i < MessageSize; i++)
   {
-    serialOutput.write(protocolParser.getMessageByte(i));
+    Serial1.write(protocolParser.getMessageByte(i));
   }
+}
+
+bool isValidValue(byte value)
+{
+  return value >= 0x30 && value <= 0x49;
+}
+
+bool isExtendedValue(byte value)
+{
+  return value >= 0x40 && value <= 0x49;
 }

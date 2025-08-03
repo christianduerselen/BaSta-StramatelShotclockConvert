@@ -18,8 +18,8 @@ class StramatelProtocolParser
     StramatelProtocolParser();
     void push(byte value);
     bool isValidMessage();
-    byte StramatelProtocolParser::getMessageByte(int index);
-    void StramatelProtocolParser::setMessageByte(int index, byte value);
+    byte getMessageByte(int index);
+    void setMessageByte(int index, byte value);
     Troolean isGameClockZero();
     Troolean isShotClockZero();
   private:
