@@ -8,10 +8,10 @@ BaSta-StramatelShotclockConvert is an Arduino program used to convert the shotcl
 - ...
 - 4.9 >  4 (.x is cut off)
 - ...
-- 0.9 > 09 (. is removed, last second)
+- 0.9 > 09 (. is removed for last second)
 - ...
-- 0.1 > 01 (0.1 seconds is ceiled to 1 second)
-- 0.0 > 00 (0.0 seconds is ceiled to 0 seconds)
+- 0.1 > 01 (. is removed for last second)
+- 0.0 > 00 (. is removed for last second)
 
 ## Usage
 
