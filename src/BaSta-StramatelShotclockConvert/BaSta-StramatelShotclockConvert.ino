@@ -1,40 +1,39 @@
-// #include "SoftwareSerial.h"
+#include "SoftwareSerial.h"
 
 #include "StramatelProtocolParser.h"
 
-// const int Rx1Pin = 2;
-// const int Tx1Pin = 3;
-// const int Rx2Pin = 4;
-// const int Tx2Pin = 5;
+const int Rx1Pin = 2;
+const int Tx1Pin = 3;
+const int TxControl1Pin = 6;
+const int TxControl2Pin = 7;
 
 const int Baudrate = 19200;
 
-// SoftwareSerial serialInput(Rx1Pin, Tx1Pin);
-// SoftwareSerial serialOutput(Rx2Pin, Tx1Pin);
+SoftwareSerial serialInput(Rx1Pin, Tx1Pin);
 StramatelProtocolParser protocolParser;
-bool conversionNecessary = false;
 
 void setup()
 {
-  // Configure serial receive (through SerialInput)
-  // serialInput.begin(Baudrate);
-  // serialOutput.begin(Baudrate);
+  pinMode(TxControl1Pin, OUTPUT);
+  digitalWrite(TxControl1Pin, LOW);
+  pinMode(TxControl2Pin, OUTPUT);
+  digitalWrite(TxControl2Pin, HIGH);
 
-  Serial1.begin(Baudrate);
-  SerialUSB.begin(Baudrate);
+  // Configure serial receive (through SerialInput)
+  serialInput.begin(Baudrate);
+
+  Serial.begin(Baudrate);
+  Serial.println("setup() done!");
 }
 
 void loop()
 {
   // RECEIVE
-  if (!Serial1.available() > 0)
+  if (!serialInput.available() > 0)
     return;
   
   // Read next byte from input
-  byte value = Serial1.read();
-
-  // Serial.write(value);
-
+  byte value = serialInput.read();
   protocolParser.push(value);
 
   // PARSE
@@ -47,53 +46,22 @@ void loop()
   byte shotClockHigh = protocolParser.getMessageByte(ShotClockHigh);
   byte shotClockLow = protocolParser.getMessageByte(ShotClockLow);
 
-  // If not yet detected, check if the lower byte has an extended value
-  if (!conversionNecessary && isExtendedValue(shotClockLow))
-    conversionNecessary = true;
-
-  // Both values must be between 0x30 (0) and 0x49 (.9) to be valid for potential manipulation
-  if (conversionNecessary && isValidValue(shotClockHigh) && isValidValue(shotClockLow))
+  if (shotClockLow >= 0x40 && shotClockLow <= 0x49 && (shotClockHigh == 0x20 || shotClockHigh >= 0x30 && shotClockHigh <= 0x39))
   {
-    // Convert data bytes to numerical value and compensate 
-    float value = 0;
-    if (shotClockLow > 0x39)
+    if (shotClockHigh != 0x30)
     {
-      value += (shotClockHigh - 0x30);
-      value += (shotClockLow - 0x40) / 10;
-
-      // New value is the ceiling (e.g. 3,3s becomes 4s)
-      value = ceil(value);
+      protocolParser.setMessageByte(ShotClockLow, shotClockHigh);
+      protocolParser.setMessageByte(ShotClockHigh, 0x20);
     }
     else
     {
-      value += (shotClockHigh - 0x30) * 10;
-      value += (shotClockLow - 0x30);
-
-      // New value is the integer increased by 1 and the maximum value is 24 (e.g. 6s becomes 7s because it represents 6,0 to 6,9 seconds, 24s remains 24s)
-      value = min(floor(value) + 1, 24);
+      protocolParser.setMessageByte(ShotClockLow, shotClockLow - 0x10);
     }
-
-    int valueHigh = (int(value) / 10) % 10;
-    int valueLow = int(value) % 10;
-    protocolParser.setMessageByte(ShotClockHigh, valueHigh + 0x30);
-    protocolParser.setMessageByte(ShotClockLow, valueLow + 0x30);
   }
 
   // OUTPUT
 
-  // Write the final message to the output
+  // Write the final message to the output and dump to monitor
   for (int i = 0; i < MessageSize; i++)
-  {
-    Serial1.write(protocolParser.getMessageByte(i));
-  }
-}
-
-bool isValidValue(byte value)
-{
-  return value >= 0x30 && value <= 0x49;
-}
-
-bool isExtendedValue(byte value)
-{
-  return value >= 0x40 && value <= 0x49;
+    Serial.write(protocolParser.getMessageByte(i));
 }
